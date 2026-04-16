@@ -19,10 +19,10 @@ client = CAVEclient("minnie65_phase3_v1", version=1412)
 
 client.materialize.get_tables()
 
-#%%
+# %%
 dir(client.auth)
 client.auth.request_header
-#%%
+# %%
 dir(client.catalog)
 
 client.catalog._default_url_mapping["catalog_server_address"] = "http://127.0.0.1:8000"
@@ -36,12 +36,33 @@ client.catalog.register_asset(
     uri="gs://mat_dbs/test/aibs_cell_info.parquet",
     format="parquet",
     asset_type="table",
-    is_managed=False,
+    is_managed=True,
     mat_version=1412,
-    revision=6,
+    revision=10,
     mutability="static",
     maturity="stable",
 )
+
+# %%
+
+asset_info = client.catalog.list_assets(
+    name="aibs_cell_info", revision=10, mat_version=1412
+)[0]
+access_info = client.catalog.get_access(asset_info["id"])
+
+# %%
+# test out using gcs credentials to read the file directly with pyarrow
+
+import polars as pl
+
+table = pl.read_parquet(
+    "gs://mat_dbs/test/aibs_cell_info.parquet",
+    storage_options={
+        "token": access_info["token"],
+    },
+)
+table
+
 
 # %%
 client.catalog.list_assets()

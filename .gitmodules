@@ -1,0 +1,9 @@
+[submodule "submodules/catalog"]
+	path = submodules/catalog
+	url = https://github.com/bdpedigo/catalog.git
+[submodule "submodules/CAVEclient"]
+	path = submodules/CAVEclient
+	url = https://github.com/CAVEconnectome/CAVEclient.git
+[submodule "submodules/MaterializationEngine"]
+	path = submodules/MaterializationEngine
+	url = https://github.com/CAVEconnectome/MaterializationEngine.git

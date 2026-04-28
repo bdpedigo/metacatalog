@@ -12,11 +12,11 @@ The system SHALL provide `POST /api/v1/tables/preview` accepting `uri` (string, 
 - **THEN** the system SHALL return 403 Forbidden
 
 ### Requirement: Table registration endpoint
-The system SHALL provide `POST /api/v1/tables/register` accepting: `datastack`, `name`, `revision`, `uri`, `format`, `mat_version` (optional), `source` (optional, default `"user"`), `is_managed`, `mutability`, `maturity`, `access_group` (optional), `expires_at` (optional), and `column_annotations` (optional). The endpoint SHALL perform authorization, duplicate checking, metadata extraction, column link validation (if annotations provided), and then create both the `assets` and `tables` rows. It SHALL return 201 with the full table record including discovered metadata and merged column view.
+The system SHALL provide `POST /api/v1/tables/register` accepting: `datastack`, `name`, `revision`, `uri`, `format`, `mat_version` (optional), `source` (optional, default `"user"`), `is_managed`, `mutability`, `maturity`, `access_group` (optional), `expires_at` (optional), and `column_annotations` (optional). The endpoint SHALL perform authorization, duplicate checking, metadata extraction, column link validation (if annotations provided), and then create an `assets` row with `asset_type="table"` and table-specific fields populated. It SHALL return 201 with the full table record including discovered metadata and merged column view.
 
 #### Scenario: Successful table registration
 - **WHEN** an authorized user registers a table with valid URI and format
-- **THEN** the system SHALL create asset and table rows, extract metadata, and return 201 with the full record
+- **THEN** the system SHALL create the asset row with table fields, extract metadata, and return 201 with the full record
 
 #### Scenario: Duplicate table
 - **WHEN** a table with the same `(datastack, name, mat_version, revision)` already exists

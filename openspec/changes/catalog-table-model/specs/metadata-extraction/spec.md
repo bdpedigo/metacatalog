@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Metadata extraction from Delta Lake tables
-The system SHALL extract metadata from Delta Lake tables by reading the Delta transaction log at the given URI. Extracted metadata SHALL include: `num_rows`, `num_columns`, `size_bytes`, `columns` (name and dtype for each column), `delta_version` (latest committed version), `partition_columns`, and `z_order_columns` (if available). The extractor SHALL use the caller's credentials (or service credentials for managed assets) to access cloud storage.
+The system SHALL extract metadata from Delta Lake tables by reading the Delta transaction log at the given URI. Extracted metadata SHALL include: `n_rows`, `n_columns`, `n_bytes`, `columns` (name and dtype for each column), `delta_version` (latest committed version), `partition_columns`, and `z_order_columns` (if available). The extractor SHALL use the caller's credentials (or service credentials for managed assets) to access cloud storage.
 
 #### Scenario: Successful Delta metadata extraction
 - **WHEN** the system extracts metadata from a valid Delta Lake URI
@@ -12,7 +12,7 @@ The system SHALL extract metadata from Delta Lake tables by reading the Delta tr
 - **THEN** the extraction SHALL fail with an error indicating the URI is not reachable or not readable
 
 ### Requirement: Metadata extraction from Parquet files
-The system SHALL extract metadata from Parquet files by reading the Parquet footer at the given URI. Extracted metadata SHALL include: `num_rows`, `num_columns`, `size_bytes`, `columns` (name and dtype), `row_group_count`, and `compression`. For partitioned Parquet datasets (directories of Parquet files), the system SHALL read metadata from a representative file.
+The system SHALL extract metadata from Parquet files by reading the Parquet footer at the given URI. Extracted metadata SHALL include: `n_rows`, `n_columns`, `n_bytes`, `columns` (name and dtype), `row_group_count`, and `compression`. For partitioned Parquet datasets (directories of Parquet files), the system SHALL read metadata from a representative file.
 
 #### Scenario: Successful Parquet metadata extraction
 - **WHEN** the system extracts metadata from a valid Parquet file URI

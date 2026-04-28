@@ -23,19 +23,20 @@ Scale is modest: hundreds to low thousands of assets per datastack. Schema chang
 
 ## Decisions
 
-### 1. Joined table inheritance for Asset → Table
+### 1. Single table inheritance for Asset → Table
 
-**Decision**: Use SQLAlchemy joined table inheritance. A `tables` DB table joins 1:1 to `assets` via `asset_id` FK. Table-specific columns (`format`, `mat_version`, `source`) are real columns on `tables`, not nullable columns on `assets`.
+**Decision**: Use SQLAlchemy single table inheritance. All asset types share the `assets` DB table. `format` and `mat_version` are base Asset fields (nullable) shared across all asset types — other asset types (e.g., image volumes with `precomputed`/`zarr` formats) will also use `format`, with valid values varying per `asset_type` and enforced at the application layer. Table-specific columns (`source`, `cached_metadata`, `metadata_cached_at`, `column_annotations`) are nullable columns on `assets`, populated only for table assets. The `asset_type` column serves as the polymorphic discriminator. SQLAlchemy's `Table(Asset)` subclass uses `polymorphic_identity="table"` with no separate `__tablename__`.
 
 **Alternatives considered**:
-- *Single table with nullable columns*: Simpler, but non-table assets carry dead weight (`format`, `mat_version` are meaningless for them). Table-specific columns can't have NOT NULL constraints.
-- *Single table with JSONB for everything*: No DB-level enforcement of table-specific fields. Can't index `mat_version` or `format` as real columns.
+- *`format` and `mat_version` as table-specific*: Originally considered making these table-only fields. But `format` is a generic concept (tables use `delta`/`parquet`, image volumes use `precomputed`/`zarr`) and `mat_version` may apply to other materialization-derived asset types. Keeping them on the base avoids moving fields between base and subclass as new asset types emerge.
+- *Joined table inheritance*: A separate `tables` DB table joined 1:1 to `assets` via FK. Keeps the base table clean and allows NOT NULL constraints on table-specific columns. But adds JOINs on every polymorphic query, two-table inserts, and more complex uniqueness constraints across tables — overhead that isn't justified at our scale (hundreds to low thousands of assets) with only one subtype today.
+- *Single table with JSONB for everything*: No DB-level columns for table-specific fields, everything in a single `details` JSONB blob. Even simpler, but loses the ability to index and filter on `format`, `mat_version`, `source` as real columns.
 
-**Rationale**: The joined approach keeps the base `assets` table clean for future asset types (meshes, image stacks) while giving tables real queryable columns. SQLAlchemy's `__mapper_args__` with `polymorphic_on` handles the join transparently.
+**Rationale**: At this scale with one subtype (tables), single table inheritance is the right tradeoff: real indexed columns for filterable fields, polymorphic dispatch in Python, no JOIN overhead, and trivial schema evolution. The cost is a few nullable columns that are meaningless for non-table assets — cosmetically messy but functionally harmless. If many asset types with many type-specific columns emerge later, migration to joined inheritance is straightforward.
 
 ### 2. Format-specific metadata as discriminated JSONB, not DB subtypes
 
-**Decision**: The `cached_metadata` JSONB column on `tables` holds format-specific metadata. Its shape varies by `format` (e.g., Delta tables include `delta_version`, `partition_columns`; Parquet includes `row_group_count`, `compression`). There are no `delta_tables` or `parquet_tables` DB tables.
+**Decision**: The `cached_metadata` JSONB column on `assets` (populated only for table assets) holds format-specific metadata. Its shape varies by `format` (e.g., Delta tables include `delta_version`, `partition_columns`; Parquet includes `row_group_count`, `compression`). There are no `delta_tables` or `parquet_tables` DB tables.
 
 **Alternatives considered**:
 - *Joined inheritance for each format*: `DeltaLakeTable(Table)`, `ParquetTable(Table)` with their own DB tables. Gives real columns for format-specific fields, but all format-specific data is cached/auto-discovered — no user-provided format-specific fields exist yet. Adding a new format requires a migration.
@@ -45,9 +46,9 @@ Scale is modest: hundreds to low thousands of assets per datastack. Schema chang
 
 ### 3. Separate JSONB fields for cached metadata vs. column annotations
 
-**Decision**: Two JSONB columns on `tables`: `cached_metadata` (refreshable, replaced wholesale on extract) and `column_annotations` (persistent, user-provided). They are never mixed.
+**Decision**: Two JSONB columns on `assets`: `cached_metadata` (refreshable, replaced wholesale on extract) and `column_annotations` (persistent, user-provided). They are never mixed. These columns are nullable and only populated for table assets.
 
-**Rationale**: This is the core design principle. Metadata refresh is a single atomic column swap — `UPDATE tables SET cached_metadata = $1, metadata_cached_at = $2`. User annotations are never at risk of being clobbered. Read-time merging by column name produces a unified view for the API consumer.
+**Rationale**: This is the core design principle. Metadata refresh is a single atomic column swap — `UPDATE assets SET cached_metadata = $1, metadata_cached_at = $2 WHERE id = $3`. User annotations are never at risk of being clobbered. Read-time merging by column name produces a unified view for the API consumer.
 
 ### 4. Column links as JSONB inside column annotations, not a relational table
 
@@ -82,8 +83,7 @@ Scale is modest: hundreds to low thousands of assets per datastack. Schema chang
 
 ## Risks / Trade-offs
 
-- **[BREAKING API change]** → `format` and `mat_version` removed from base Asset schema. Mitigated by coordinating with CAVEclient and MaterializationEngine updates. Version the API if needed.
-- **[Data migration complexity]** → Existing `assets` rows with `asset_type="table"` must be migrated into `tables` rows with `format` and `mat_version` extracted from the old columns. Mitigated by writing a one-time Alembic migration with explicit data transformation.
+- **[Nullable columns on base table]** → `format` and `mat_version` remain as nullable base Asset fields (shared across all asset types). Table-specific columns (`source`, `cached_metadata`, `metadata_cached_at`, `column_annotations`) are also nullable on the shared `assets` table. Non-table assets will have NULLs in table-specific columns. Accepted: at this scale with one subtype, the cosmetic cost is trivial and NOT NULL enforcement happens at the application layer via Pydantic validation.
 - **[JSONB query performance]** → Column link queries (`find assets referencing table X`) use JSONB operators, not relational JOINs. Mitigated by GIN index on `column_annotations` and modest data scale. Can add a materialized view later if needed.
 - **[Column name as join key]** → Cached columns and user annotations are merged by column name at read time. If a column is renamed in the data and metadata is refreshed, user annotations become orphaned (still stored, just not matched to a column). Accepted as a known limitation — annotations are inert when orphaned, and the column name change is visible to the user.
 - **[Double extraction on preview+register]** → Extraction runs twice if the user previews first. Accepted at current scale; extraction is seconds, not minutes.

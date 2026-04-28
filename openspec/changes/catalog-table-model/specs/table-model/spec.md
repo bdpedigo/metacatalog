@@ -1,33 +1,33 @@
 ## ADDED Requirements
 
-### Requirement: Table data model with joined inheritance
-The system SHALL store tables using joined table inheritance: a `tables` DB table with a 1:1 foreign key (`asset_id`) to the `assets` table. The `tables` table SHALL contain: `format` (TEXT, required — e.g., `"delta"`, `"parquet"`), `mat_version` (INTEGER, nullable), `source` (TEXT, required, default `"user"` — enum: `"user"`, `"materialization"`), `cached_metadata` (JSONB, nullable), `metadata_cached_at` (TIMESTAMPTZ, nullable), and `column_annotations` (JSONB, nullable). The `assets` table SHALL use `asset_type` as a polymorphic discriminator column.
+### Requirement: Table data model with single table inheritance
+The system SHALL store tables using single table inheritance: table-specific columns are nullable columns on the shared `assets` table. `format` (TEXT) and `mat_version` (INTEGER) are base Asset fields shared across all asset types (nullable, since not all asset types require them). The `assets` table SHALL include the following table-specific nullable columns: `source` (TEXT, default `"user"` — enum: `"user"`, `"materialization"`), `cached_metadata` (JSONB), `metadata_cached_at` (TIMESTAMPTZ), and `column_annotations` (JSONB). The `asset_type` column SHALL serve as the polymorphic discriminator. SQLAlchemy SHALL use a `Table` subclass with `polymorphic_identity="table"` sharing the same `assets` table.
 
-#### Scenario: Table created via joined inheritance
+#### Scenario: Table asset created
 - **WHEN** a table asset is registered
-- **THEN** the system SHALL insert a row into `assets` with `asset_type = "table"` and a corresponding row into `tables` with `format`, `mat_version`, and `source`
+- **THEN** the system SHALL insert a row into `assets` with `asset_type = "table"` and populate `format`, `mat_version`, `source`, and other table-specific columns
 
-#### Scenario: Non-table asset has no tables row
+#### Scenario: Non-table asset ignores table columns
 - **WHEN** a non-table asset is registered
-- **THEN** the system SHALL insert only a row into `assets` with no corresponding `tables` row
+- **THEN** the system SHALL insert a row into `assets` with table-specific columns set to NULL
 
-#### Scenario: Table query via join
+#### Scenario: Table query returns table-specific fields
 - **WHEN** a table asset is queried by ID
-- **THEN** the system SHALL join `assets` and `tables` to return all base and table-specific fields
+- **THEN** the system SHALL return all base and table-specific fields from the single `assets` row
 
 ### Requirement: Format-discriminated cached metadata
-The `cached_metadata` JSONB column SHALL hold format-specific metadata whose shape varies by the `format` field. All formats SHALL include: `num_rows` (integer or null), `num_columns` (integer or null), `size_bytes` (integer or null), and `columns` (array of `{name: string, dtype: string}`). Delta tables SHALL additionally include: `delta_version` (integer), `partition_columns` (array of strings), `z_order_columns` (array of strings or null). Parquet tables SHALL additionally include: `row_group_count` (integer), `compression` (string). The system SHALL validate the cached metadata shape against the format at write time using application-layer Pydantic models.
+The `cached_metadata` JSONB column SHALL hold format-specific metadata whose shape varies by the `format` field. All formats SHALL include: `n_rows` (integer or null), `n_columns` (integer or null), `n_bytes` (integer or null), and `columns` (array of `{name: string, dtype: string}`). Delta tables SHALL additionally include: `delta_version` (integer), `partition_columns` (array of strings), `z_order_columns` (array of strings or null). Parquet tables SHALL additionally include: `row_group_count` (integer), `compression` (string). The system SHALL validate the cached metadata shape against the format at write time using application-layer Pydantic models.
 
 #### Scenario: Delta table cached metadata shape
 - **WHEN** a Delta table's metadata is extracted and cached
-- **THEN** `cached_metadata` SHALL contain `num_rows`, `columns`, `delta_version`, and `partition_columns`
+- **THEN** `cached_metadata` SHALL contain `n_rows`, `columns`, `delta_version`, and `partition_columns`
 
 #### Scenario: Parquet table cached metadata shape
 - **WHEN** a Parquet table's metadata is extracted and cached
-- **THEN** `cached_metadata` SHALL contain `num_rows`, `columns`, `row_group_count`, and `compression`
+- **THEN** `cached_metadata` SHALL contain `n_rows`, `columns`, `row_group_count`, and `compression`
 
 ### Requirement: Column annotations with column links
-The `column_annotations` JSONB column SHALL store an array of annotation objects, each containing: `column_name` (string, required), `description` (string or null), and `links` (array of column link objects). Each column link object SHALL contain: `link_type` (string — e.g., `"foreign_key"`, `"derived_from"`), `target_table` (string — materialization table name), `target_column` (string), `target_datastack` (string or null — defaults to same datastack), and `target_mat_version` (integer or null). Column annotations SHALL persist across metadata refreshes — refreshing `cached_metadata` SHALL NOT modify `column_annotations`.
+The `column_annotations` JSONB column SHALL store an array of annotation objects, each containing: `column_name` (string, required), `description` (string or null), and `links` (array of column link objects). Each column link object SHALL contain: `link_type` (string — e.g., `"foreign_key"`, `"derived_from"`), `target_table` (string — materialization table name), and `target_column` (string). Column links always reference tables within the same datastack as the asset. Column annotations SHALL persist across metadata refreshes — refreshing `cached_metadata` SHALL NOT modify `column_annotations`.
 
 #### Scenario: Annotations persist across refresh
 - **WHEN** a table's cached metadata is refreshed

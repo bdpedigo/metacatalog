@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Register an asset
-The `CatalogClient` SHALL provide a `register_asset()` method accepting `name`, `uri`, `asset_type`, `is_managed`, and optional `revision` (default 1), `mutability` (default `"static"`), `maturity` (default `"stable"`), `properties`, and `expires_at`. The `format` and `mat_version` parameters are REMOVED — these are now part of table registration only. The datastack is inherited from the client configuration.
+The `CatalogClient` SHALL provide a `register_asset()` method accepting `name`, `uri`, `asset_type`, `is_managed`, and optional `revision` (default 1), `mutability` (default `"static"`), `maturity` (default `"stable"`), `format`, `mat_version`, `properties`, and `expires_at`. The `format` and `mat_version` parameters remain as optional base Asset fields (not table-specific). The datastack is inherited from the client configuration.
 
 #### Scenario: Register a non-table asset
 - **WHEN** a user calls `client.catalog.register_asset(name="my_mesh", uri="gs://bucket/mesh/", asset_type="mesh", is_managed=False)`

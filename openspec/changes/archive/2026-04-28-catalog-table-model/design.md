@@ -34,15 +34,15 @@ Scale is modest: hundreds to low thousands of assets per datastack. Schema chang
 
 **Rationale**: At this scale with one subtype (tables), single table inheritance is the right tradeoff: real indexed columns for filterable fields, polymorphic dispatch in Python, no JOIN overhead, and trivial schema evolution. The cost is a few nullable columns that are meaningless for non-table assets — cosmetically messy but functionally harmless. If many asset types with many type-specific columns emerge later, migration to joined inheritance is straightforward.
 
-### 2. Format-specific metadata as discriminated JSONB, not DB subtypes
+### 2. Unified cached metadata model, not format-specific subtypes
 
-**Decision**: The `cached_metadata` JSONB column on `assets` (populated only for table assets) holds format-specific metadata. Its shape varies by `format` (e.g., Delta tables include `delta_version`, `partition_columns`; Parquet includes `row_group_count`, `compression`). There are no `delta_tables` or `parquet_tables` DB tables.
+**Decision**: A single `TableMetadata` Pydantic model is used for all table formats (Delta, Parquet, Lance, etc.). The model includes fields common across formats: `n_rows`, `n_columns`, `n_bytes`, `columns`, and `partition_columns`. There are no `DeltaMetadata` or `ParquetMetadata` subclasses, and no `delta_tables` or `parquet_tables` DB tables.
 
 **Alternatives considered**:
+- *Pydantic subclass per format*: `DeltaMetadata(TableMetadata)`, `ParquetMetadata(TableMetadata)` with format-specific fields like `delta_version`, `z_order_columns`, `row_group_count`, `compression`. But on review, these fields are either too volatile (`delta_version` changes on every write) or too internal (`compression`, `row_group_count`) to be useful at the catalog level. Keeping them adds complexity without discovery value.
 - *Joined inheritance for each format*: `DeltaLakeTable(Table)`, `ParquetTable(Table)` with their own DB tables. Gives real columns for format-specific fields, but all format-specific data is cached/auto-discovered — no user-provided format-specific fields exist yet. Adding a new format requires a migration.
-- *Separate `cached_metadata` table per format*: Same overhead, no benefit.
 
-**Rationale**: Format subtypes are entirely cached metadata. Validation happens at the application layer via Pydantic models keyed by format. Adding a new format requires only a new extractor and Pydantic model, no migration.
+**Rationale**: The useful metadata for discovery (schema, row count, size, partitioning) is the same across all table formats. Format-specific internals don't help users find or understand data. If a format later needs its own fields, subclassing `TableMetadata` is backward-compatible — existing JSONB blobs validate fine against any subclass that only adds fields with defaults.
 
 ### 3. Separate JSONB fields for cached metadata vs. column annotations
 

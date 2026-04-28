@@ -15,16 +15,12 @@ The system SHALL store tables using single table inheritance: table-specific col
 - **WHEN** a table asset is queried by ID
 - **THEN** the system SHALL return all base and table-specific fields from the single `assets` row
 
-### Requirement: Format-discriminated cached metadata
-The `cached_metadata` JSONB column SHALL hold format-specific metadata whose shape varies by the `format` field. All formats SHALL include: `n_rows` (integer or null), `n_columns` (integer or null), `n_bytes` (integer or null), and `columns` (array of `{name: string, dtype: string}`). Delta tables SHALL additionally include: `delta_version` (integer), `partition_columns` (array of strings), `z_order_columns` (array of strings or null). Parquet tables SHALL additionally include: `row_group_count` (integer), `compression` (string). The system SHALL validate the cached metadata shape against the format at write time using application-layer Pydantic models.
+### Requirement: Cached metadata structure
+The `cached_metadata` JSONB column SHALL hold table metadata with a single unified shape across all formats. The structure SHALL include: `n_rows` (integer or null), `n_columns` (integer or null), `n_bytes` (integer or null), `columns` (array of `{name: string, dtype: string}`), and `partition_columns` (array of strings, default empty). There are no format-specific submodels — the same schema applies to Delta, Parquet, Lance, and any future format. If a format needs additional fields later, the model can be subclassed at that time. The system SHALL validate the cached metadata shape at write time using an application-layer Pydantic model.
 
-#### Scenario: Delta table cached metadata shape
-- **WHEN** a Delta table's metadata is extracted and cached
-- **THEN** `cached_metadata` SHALL contain `n_rows`, `columns`, `delta_version`, and `partition_columns`
-
-#### Scenario: Parquet table cached metadata shape
-- **WHEN** a Parquet table's metadata is extracted and cached
-- **THEN** `cached_metadata` SHALL contain `n_rows`, `columns`, `row_group_count`, and `compression`
+#### Scenario: Table cached metadata shape
+- **WHEN** a table's metadata is extracted and cached (any format)
+- **THEN** `cached_metadata` SHALL contain `n_rows`, `n_columns`, `n_bytes`, `columns`, and `partition_columns`
 
 ### Requirement: Column annotations with column links
 The `column_annotations` JSONB column SHALL store an array of annotation objects, each containing: `column_name` (string, required), `description` (string or null), and `links` (array of column link objects). Each column link object SHALL contain: `link_type` (string — e.g., `"foreign_key"`, `"derived_from"`), `target_table` (string — materialization table name), and `target_column` (string). Column links always reference tables within the same datastack as the asset. Column annotations SHALL persist across metadata refreshes — refreshing `cached_metadata` SHALL NOT modify `column_annotations`.

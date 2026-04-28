@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Asset data model
-The system SHALL store assets with the following required fields: `id` (UUID), `datastack` (string), `name` (string), `mat_version` (nullable integer — the CAVE materialization version, if applicable), `revision` (integer, default 1 — the asset's own iteration), `uri` (string), `format` (string), `asset_type` (string), `owner` (string), `is_managed` (boolean), `mutability` (enum: `"static"` or `"mutable"`), `maturity` (enum: `"stable"`, `"draft"`, or `"deprecated"`), `properties` (JSON object), and `created_at` (timestamp). The system SHALL also store optional fields: `expires_at` (timestamp) for TTL lifecycle and `access_group` (nullable string) for future per-asset permissions. Uniqueness SHALL be enforced via two partial unique indexes: `(datastack, name, mat_version, revision)` where `mat_version IS NOT NULL`, and `(datastack, name, revision)` where `mat_version IS NULL`.
+The system SHALL store assets with the following required fields: `id` (UUID), `datastack` (string), `name` (string), `revision` (integer, default 1), `uri` (string), `asset_type` (string — polymorphic discriminator), `owner` (string), `is_managed` (boolean), `mutability` (enum: `"static"` or `"mutable"`), `maturity` (enum: `"stable"`, `"draft"`, or `"deprecated"`), `properties` (JSON object), and `created_at` (timestamp). The system SHALL also store optional base fields: `format` (TEXT, nullable — storage format, e.g. `"delta"`, `"parquet"`, `"precomputed"`; valid values vary by asset type), `mat_version` (INTEGER, nullable), `expires_at` (timestamp) for TTL lifecycle, and `access_group` (nullable string) for per-asset permissions. The `assets` table SHALL also include table-specific nullable columns: `source` (TEXT), `cached_metadata` (JSONB), `metadata_cached_at` (TIMESTAMPTZ), and `column_annotations` (JSONB) — these are populated only for table assets and NULL for other asset types. The `asset_type` column SHALL serve as the polymorphic discriminator for single table inheritance. Uniqueness for assets with `mat_version` SHALL be enforced via partial unique index on `(datastack, name, mat_version, revision)` where `mat_version IS NOT NULL`. Uniqueness for assets without `mat_version` SHALL be enforced via partial unique index on `(datastack, name, revision)` where `mat_version IS NULL`.
 
 #### Scenario: Unique constraint enforcement
 - **WHEN** a registration request provides a `(datastack, name, mat_version, revision)` tuple that already exists
@@ -18,6 +18,10 @@ The system SHALL store assets with the following required fields: `id` (UUID), `
 #### Scenario: Optional expiry
 - **WHEN** an asset is registered without an `expires_at` value
 - **THEN** the system SHALL store the asset with a NULL `expires_at`, meaning it is retained indefinitely
+
+#### Scenario: Non-table asset uniqueness
+- **WHEN** a non-table asset is registered with `(datastack, name, revision)` matching an existing non-table asset
+- **THEN** the system SHALL reject the request with a 409 Conflict response
 
 ### Requirement: Asset registration with synchronous validation
 The system SHALL accept asset registration via `POST /api/v1/assets/register` with a JSON body containing the required asset fields. Registration SHALL perform synchronous validation in the following order: (1) caller authorization, (2) duplicate check, (3) URI reachability via HEAD request, (4) format sniff by checking for format-specific metadata (e.g., `_delta_log/` for Delta, `info` file for precomputed). When `properties.source` is `"materialization"`, the system SHALL additionally verify the claimed mat table and version exist by querying the MaterializationEngine API. Validation SHALL complete within a reasonable synchronous timeout.

@@ -1,22 +1,22 @@
 ## ADDED Requirements
 
 ### Requirement: Metadata extraction from Delta Lake tables
-The system SHALL extract metadata from Delta Lake tables by reading the Delta transaction log at the given URI. Extracted metadata SHALL include: `n_rows`, `n_columns`, `n_bytes`, `columns` (name and dtype for each column), `delta_version` (latest committed version), `partition_columns`, and `z_order_columns` (if available). The extractor SHALL use the caller's credentials (or service credentials for managed assets) to access cloud storage.
+The system SHALL extract metadata from Delta Lake tables by reading the Delta transaction log at the given URI. Extracted metadata SHALL include: `n_rows`, `n_columns`, `n_bytes`, `columns` (name and dtype for each column), and `partition_columns`. The extractor SHALL use the caller's credentials (or service credentials for managed assets) to access cloud storage.
 
 #### Scenario: Successful Delta metadata extraction
 - **WHEN** the system extracts metadata from a valid Delta Lake URI
-- **THEN** the result SHALL include the column schema, row count, delta version, and partition columns read from the Delta log
+- **THEN** the result SHALL include the column schema, row count, size, and partition columns read from the Delta log
 
 #### Scenario: Inaccessible Delta URI
 - **WHEN** the system attempts to extract metadata from a Delta Lake URI it cannot access
 - **THEN** the extraction SHALL fail with an error indicating the URI is not reachable or not readable
 
 ### Requirement: Metadata extraction from Parquet files
-The system SHALL extract metadata from Parquet files by reading the Parquet footer at the given URI. Extracted metadata SHALL include: `n_rows`, `n_columns`, `n_bytes`, `columns` (name and dtype), `row_group_count`, and `compression`. For partitioned Parquet datasets (directories of Parquet files), the system SHALL read metadata from a representative file.
+The system SHALL extract metadata from Parquet files by reading the Parquet footer at the given URI. Extracted metadata SHALL include: `n_rows`, `n_columns`, `n_bytes`, and `columns` (name and dtype). For partitioned Parquet datasets (directories of Parquet files), the system SHALL read metadata from a representative file.
 
 #### Scenario: Successful Parquet metadata extraction
 - **WHEN** the system extracts metadata from a valid Parquet file URI
-- **THEN** the result SHALL include the column schema, row count, row group count, and compression read from the Parquet footer
+- **THEN** the result SHALL include the column schema, row count, and size read from the Parquet footer
 
 ### Requirement: Metadata extraction at preview
 The `POST /api/v1/tables/preview` endpoint SHALL trigger metadata extraction for the provided URI and format. The extracted metadata SHALL be returned in the response. The preview SHALL NOT create any asset record or store any data.

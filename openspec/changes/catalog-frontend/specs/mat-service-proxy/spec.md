@@ -48,14 +48,14 @@ The catalog service SHALL provide a route handler that returns the column names 
 - **THEN** the system SHALL return a list of column names with their types
 
 ### Requirement: CAVEclient integration with service token
-The catalog service SHALL initialize CAVEclient instances using a configured service token (`SERVICE_TOKEN` environment variable) for materialization engine queries. CAVEclient calls SHALL be executed via `asyncio.to_thread` to avoid blocking the async event loop.
+The catalog service SHALL initialize CAVEclient instances using a configured service token (`CAVE_TOKEN` environment variable) for materialization engine queries. CAVEclient calls SHALL be executed via `asyncio.to_thread` to avoid blocking the async event loop.
 
 #### Scenario: Service token used for mat queries
 - **WHEN** the catalog queries the materialization engine for table or column data
 - **THEN** the query SHALL authenticate using the service token, not the requesting user's token
 
 #### Scenario: Service token not configured
-- **WHEN** `SERVICE_TOKEN` is not set and a mat proxy request is made
+- **WHEN** `CAVE_TOKEN` is not set and a mat proxy request is made
 - **THEN** the system SHALL return an error indicating the service is not configured for materialization queries
 
 ### Requirement: TTL cache for materialization reference data

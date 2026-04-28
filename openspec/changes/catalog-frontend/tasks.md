@@ -24,7 +24,7 @@
 
 ## 4. Mat Service Proxy
 
-- [ ] 4.1 Add `SERVICE_TOKEN` and `CAVECLIENT_SERVER_ADDRESS` settings to `config.py`
+- [ ] 4.1 Add `CAVE_TOKEN` and `CAVECLIENT_SERVER_ADDRESS` settings to `config.py`
 - [ ] 4.2 Create `mat_proxy.py` module with functions: `get_mat_tables(datastack, version)`, `get_mat_views(datastack, version)`, `get_linkable_targets(datastack, version)`, `get_target_columns(datastack, version, target_name, target_type)`. All use CAVEclient via `asyncio.to_thread` with service token.
 - [ ] 4.3 Add TTL cache (e.g., `cachetools.TTLCache`) keyed by `(datastack, version)` for table/view lists and `(datastack, version, target_name)` for column schemas
 - [ ] 4.4 Add UI route handlers that return HTML fragments (for HTMX) or JSON for the link builder: linkable targets list, column list for a selected target

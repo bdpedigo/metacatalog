@@ -25,7 +25,7 @@ The catalog service is a JSON API with no user-facing interface — dataset admi
 ## Impact
 
 - **Catalog service**: New dependencies — `jinja2`, `python-multipart` (form parsing), `caveclient`. New directories under `src/cave_catalog/`: `templates/`, `static/`, and a `routers/ui.py` (or similar) for UI route handlers. HTMX and Alpine.js loaded via CDN `<script>` tags, no npm/Node.js.
-- **Configuration**: New settings — `SERVICE_TOKEN` (for mat engine queries), optional `CAVECLIENT_SERVER_ADDRESS`. Existing `AUTH_SERVICE_URL` and `AUTH_ENABLED` settings are reused for the OAuth flow.
+- **Configuration**: New settings — `CAVE_TOKEN` (for mat engine queries), optional `CAVECLIENT_SERVER_ADDRESS`. Existing `AUTH_SERVICE_URL` and `AUTH_ENABLED` settings are reused for the OAuth flow.
 - **Deployment**: No new services. The UI is served from the same FastAPI app. Static assets (CSS, any local JS) are served via FastAPI's `StaticFiles` mount.
 - **Materialization Engine**: No changes required in V1. The catalog queries existing endpoints (`GET .../tables`, `GET .../views`, `GET .../views/{view}/schema`). For regular table column schemas, the catalog resolves the schema type name through emannotationschemas via CAVEclient. A future unified "linkable targets with columns" endpoint would simplify this but is not a blocker.
 - **Dependencies on catalog-table-model**: The table registration UI depends on the table-specific endpoints (`POST /tables/preview`, `POST /tables/register`) and models (`TablePreviewRequest`, `TableResponse`, `ColumnAnnotation`, `ColumnLink`) being implemented. This change should be sequenced after or in parallel with catalog-table-model's endpoint work.

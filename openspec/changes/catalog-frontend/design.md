@@ -45,7 +45,7 @@ The catalog service is a FastAPI JSON API with no UI. Dataset admins interact vi
 
 ### 3. CAVEclient for materialization engine queries with service token
 
-**Decision**: The catalog adds CAVEclient as a Python dependency and uses it to query the materialization engine for table lists, view lists, and column schemas. These queries authenticate with a service token (configured via `SERVICE_TOKEN` env var), not the user's token. CAVEclient calls are synchronous; they run via `asyncio.to_thread` to avoid blocking the event loop.
+**Decision**: The catalog adds CAVEclient as a Python dependency and uses it to query the materialization engine for table lists, view lists, and column schemas. These queries authenticate with a service token (configured via `CAVE_TOKEN` env var), not the user's token. CAVEclient calls are synchronous; they run via `asyncio.to_thread` to avoid blocking the event loop.
 
 **Alternatives considered**:
 - *Hand-rolled httpx calls (current pattern)*: The validation code already calls mat engine endpoints via httpx. Extending this for table lists, view lists, and schema resolution means duplicating URL construction and response parsing that CAVEclient already handles.

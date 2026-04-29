@@ -52,7 +52,7 @@ The system SHALL accept asset registration via `POST /api/v1/assets/register` wi
 - **THEN** the system SHALL return 403 Forbidden
 
 ### Requirement: Materialization table name reservation
-The system SHALL check asset names at registration time against the set of materialization table names for the same datastack (queried from the MaterializationEngine `/tables` endpoint across all versions). If the name matches a materialization table, the system SHALL reject the registration unless the caller has admin/service-level write permission and sets `properties.source` to `"materialization"`. Layout variants (names matching `{mat_table}.{suffix}`) SHALL also be reserved. The dry-run validation endpoint SHALL also perform this check.
+The system SHALL check asset names at registration time against the set of materialization table names for the same datastack (queried from the MaterializationEngine `/tables` endpoint across all versions). If the name matches a materialization table, the system SHALL reject the registration unless the caller has admin/service-level write permission and sets `properties.source` to `"materialization"`. Layout variants (names matching `{mat_table}.{suffix}`) SHALL also be reserved. The dry-run validation endpoint SHALL also perform this check. The name reservation check SHALL also be available as an independent endpoint (`GET /api/v1/assets/check-name`) that additionally checks for duplicate assets with the same `(datastack, name, mat_version, revision)` tuple, returning a combined availability result.
 
 #### Scenario: Regular user blocked from registering a mat table name
 - **WHEN** a regular user attempts to register an asset named `synapses` in a datastack where `synapses` exists as a materialization table
@@ -65,6 +65,21 @@ The system SHALL check asset names at registration time against the set of mater
 #### Scenario: Layout variant of a reserved name is also reserved
 - **WHEN** a regular user attempts to register an asset named `synapses.by_pre_root` and `synapses` exists as a materialization table
 - **THEN** the system SHALL return 409 with a message indicating the name is reserved (layout variants of mat table names are reserved)
+
+#### Scenario: Independent name availability check — name available
+- **WHEN** a user requests `GET /api/v1/assets/check-name?datastack=X&name=Y`
+- **AND** the name is not reserved by materialization and no duplicate asset exists
+- **THEN** the system SHALL return 200 with `{available: true}`
+
+#### Scenario: Independent name availability check — name taken
+- **WHEN** a user requests `GET /api/v1/assets/check-name?datastack=X&name=Y&mat_version=1&revision=0`
+- **AND** an asset with that `(datastack, name, mat_version, revision)` tuple already exists
+- **THEN** the system SHALL return 200 with `{available: false, reason: "duplicate", existing_id: "..."}`
+
+#### Scenario: Independent name availability check — name reserved
+- **WHEN** a user requests `GET /api/v1/assets/check-name?datastack=X&name=synapses`
+- **AND** `synapses` is a materialization table in that datastack
+- **THEN** the system SHALL return 200 with `{available: false, reason: "reserved"}`
 
 ### Requirement: Dry-run validation endpoint
 The system SHALL provide `POST /api/v1/assets/validate` which accepts the same request body as `/api/v1/assets/register` and runs the identical validation pipeline (caller authorization, duplicate check, URI reachability, format sniff, source-conditional checks) but SHALL NOT create an asset record. The response SHALL return a structured validation report listing each check with its pass/fail status and any error details.

@@ -80,7 +80,9 @@ The registration form SHALL include a table name field. When the user finishes t
 - **THEN** the system SHALL display an error indicator and message that the name is already taken
 
 ### Requirement: Registration submission with result display
-The registration form SHALL provide a Register button that submits the complete form (URI, name, mat_version, column annotations with links) via `POST /tables/register`. On success, the system SHALL display the registered table's ID and details with options to view the table or register another. On failure, the system SHALL display validation errors on the form without losing the user's input.
+The registration form SHALL provide a Register button that submits the complete form (URI, name, mat_version, column annotations with links, and all user-settable asset fields) via `POST /tables/register`. On success, the system SHALL display the registered table's ID and details with options to view the table or register another. On failure, the system SHALL display validation errors on the form without losing the user's input.
+
+The registration form SHALL expose all user-settable fields from the `TableRequest` schema, including: revision, mutability, maturity, is_managed, access_group, expires_at, and properties. Fields not on the form (auto-determined) are limited to: datastack (from global selector), asset_type (always "table"), and source (always "user"). A sync test SHALL enforce that any field added to `TableRequest` is either on the form or explicitly marked as auto-determined.
 
 #### Scenario: Successful registration
 - **WHEN** the user clicks Register with valid form data

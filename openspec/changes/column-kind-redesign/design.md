@@ -70,11 +70,18 @@ Spatial coordinates often come as `x`, `y`, `z` in separate columns. The `point_
 
 ### 4. Validation dispatch on kind
 
-- `materialization` → validate `target_table` exists in ME (existing logic)
-- `segmentation` → validate node_level matches pattern: `root_id`, `supervoxel_id`, or `level\d+_id`
-- `point` → no external validation needed (axis is enum-constrained)
+- `materialization` → validate `target_table` exists in ME (existing logic); form options are already generated from available tables/columns so invalid targets are constrained at the UI level
+- `segmentation` → validate node_level matches pattern: `root_id`, `supervoxel_id`, or `level\d+_id`; validate column dtype is integer (int8–int64, uint8–uint64)
+- `point` → validate column dtype is integer or float (int*, uint*, float32, float64)
 
-**Rationale**: Only mat kinds reference external state that can be invalid. Segmentation and point kinds are self-describing (node_level validated by regex pattern, axis by enum).
+**dtype validation**: When cached metadata is available, kind assignment is checked against `ColumnInfo.dtype` for the target column:
+- `segmentation` requires integer dtype (node IDs are always ints)
+- `point` requires numeric dtype (coordinates are int or float)
+- `materialization` has no dtype constraint (foreign keys can be any type that matches the target)
+
+If cached metadata is not yet available (e.g., metadata extraction hasn't run), dtype validation is skipped — the kind is accepted optimistically and can be re-validated later.
+
+**Rationale**: These checks catch obvious mistakes at registration time (e.g., assigning segmentation kind to a string column) without requiring external service calls. Materialization validation remains the only kind that hits an external API.
 
 ## Risks / Trade-offs
 

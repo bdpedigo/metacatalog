@@ -37,17 +37,29 @@ class SegmentationKind(BaseModel):
     kind: Literal["segmentation"]
     node_level: str  # "root_id", "supervoxel_id", or "level{N}_id" (e.g., "level2_id")
 
-class PointKind(BaseModel):
-    kind: Literal["point"]
-    axis: Literal["x", "y", "z"] | None = None
-    point_group: str | None = None
+class PackedPointKind(BaseModel):
+    kind: Literal["packed_point"]
+    resolution: list[float] | None = None  # must be length 3 when set [rx, ry, rz]
 
-ColumnKind = Annotated[MatKind | SegmentationKind | PointKind, Field(discriminator="kind")]
+class SplitPointKind(BaseModel):
+    kind: Literal["split_point"]
+    axis: Literal["x", "y", "z"]  # required
+    point_group: str | None = None
+    resolution: float | None = None  # scalar resolution for this axis
+
+ColumnKind = Annotated[
+    MatKind | SegmentationKind | PackedPointKind | SplitPointKind,
+    Field(discriminator="kind"),
+]
 ```
 
-**Rationale**: Each kind needs different fields. A discriminated union enforces this at the type level and serializes cleanly to/from JSON. The `kind` discriminator maps directly to the UI selector.
+**Rationale**: Spatial data comes in two common forms — packed (single column with all xyz, e.g., `pt_position` as array/struct) and split (separate columns for each axis, e.g., `pt_position_x`, `_y`, `_z`). These have different semantics:
+- **Packed**: one column has all coordinates; resolution is a 3-vector.
+- **Split**: each column is a single axis; `axis` is required; `point_group` ties columns together; resolution is a scalar per-axis.
 
-**Alternative considered**: A single model with many optional fields. Rejected because it allows invalid combinations and makes validation more complex.
+Each kind needs different fields. A discriminated union enforces this at the type level and serializes cleanly to/from JSON. The `kind` discriminator maps directly to the UI selector.
+
+**Alternative considered**: A single `PointKind` with optional `axis`. Rejected because it conflates packed vs. split semantics and makes `axis` optionality confusing (optional for packed, required for split).
 
 ### 2. Singular `kind` field (not a list)
 
@@ -62,21 +74,22 @@ class ColumnAnnotation(BaseModel):
 
 **Migration to list later**: Trivial — one Alembic migration wrapping `kind` → `kinds: [kind]`, Pydantic change, UI update.
 
-### 3. `point_group` for spatial column grouping
+### 3. `point_group` for spatial column grouping (split points only)
 
-Spatial coordinates often come as `x`, `y`, `z` in separate columns. The `point_group` string (e.g., `"pt_position"`) ties them together without introducing a complex grouping model.
+Split point columns often come as `x`, `y`, `z` in separate columns. The `point_group` string (e.g., `"pt_position"`) ties them together without introducing a complex grouping model. A uniqueness constraint ensures no two columns in a table share the same `(point_group, axis)` pair.
 
-**Rationale**: Lightweight. Consumers discover groups by matching `point_group` values. No need for a separate group entity or ordering logic.
+**Rationale**: Lightweight. Consumers discover groups by matching `point_group` values. No need for a separate group entity or ordering logic. The uniqueness check prevents ambiguous group membership.
 
 ### 4. Validation dispatch on kind
 
 - `materialization` → validate `target_table` exists in ME (existing logic); form options are already generated from available tables/columns so invalid targets are constrained at the UI level
 - `segmentation` → validate node_level matches pattern: `root_id`, `supervoxel_id`, or `level\d+_id`; validate column dtype is integer (int8–int64, uint8–uint64)
-- `point` → validate column dtype is integer or float (int*, uint*, float32, float64)
+- `packed_point` → validate column dtype is numeric (int or float); validate resolution list has exactly 3 elements when provided
+- `split_point` → validate `axis` is required; validate column dtype is numeric; validate `(point_group, axis)` uniqueness across annotations
 
 **dtype validation**: When cached metadata is available, kind assignment is checked against `ColumnInfo.dtype` for the target column:
 - `segmentation` requires integer dtype (node IDs are always ints)
-- `point` requires numeric dtype (coordinates are int or float)
+- `packed_point` / `split_point` require numeric dtype (coordinates are int or float)
 - `materialization` has no dtype constraint (foreign keys can be any type that matches the target)
 
 If cached metadata is not yet available (e.g., metadata extraction hasn't run), dtype validation is skipped — the kind is accepted optimistically and can be re-validated later.

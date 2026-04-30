@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Table registration page
 The UI SHALL provide a table registration page at `/ui/register` with a multi-step form: (1) URI entry and metadata preview, (2) column annotation and table metadata editing, (3) registration submission with result display.
@@ -31,38 +31,57 @@ The registration form SHALL provide a Preview button that triggers metadata disc
 - **THEN** the system SHALL display a format-specific diagnostic error (e.g., "Delta: transaction log corrupt or unreadable")
 
 ### Requirement: Column annotation editing
-After successful preview, the registration form SHALL display a column table with one row per discovered column. Each row SHALL show the column name (read-only), data type (read-only), a description text field (editable), and a links section for adding column links.
+After successful preview, the registration form SHALL display a column table with one row per discovered column. Each row SHALL show the column name (read-only), data type (read-only), a description text field (editable), and a kind section for setting column kinds.
 
 #### Scenario: Column table populated from preview
 - **WHEN** preview returns metadata with columns `[{name: "pt_root", dtype: "int64"}, {name: "score", dtype: "float64"}]`
-- **THEN** the form SHALL display a table with two rows, each showing name, type, an empty description field, and an "Add Link" button
+- **THEN** the form SHALL display a table with two rows, each showing name, type, an empty description field, and a "Set Kind" button
 
 #### Scenario: User enters column description
 - **WHEN** the user types "Root ID of the neuron" into the description field for column "pt_root"
 - **THEN** the value SHALL be included in the `column_annotations` payload when the form is submitted
 
-### Requirement: Column link builder with cascading dropdowns
-The registration form SHALL provide an "Add Link" interaction on each column row. Adding a link SHALL present: a link type selector, a target table/view dropdown (populated from materialization service), and a target column dropdown (populated based on the selected target table/view). The target table/view dropdown SHALL include both materialization tables and views.
+### Requirement: Column kind builder with cascading dropdowns
+The registration form SHALL provide a "Set Kind" interaction on each column row. Setting a kind SHALL present a kind selector with options: "Materialization", "Segmentation", "Packed Point", and "Split Point". Based on the selected kind, variant-specific fields SHALL appear:
 
-#### Scenario: Add link shows target table dropdown
-- **WHEN** the user clicks "Add Link" on a column row
-- **THEN** the system SHALL display a link type selector and a target table/view dropdown populated with available materialization tables and views for the current datastack
+- **Materialization**: a target table/view dropdown (populated from materialization service) and a target column dropdown (populated based on the selected target table/view).
+- **Segmentation**: a node level dropdown with common presets ("Root ID", "Supervoxel ID", "Level 2 ID") and a "Custom level…" option that reveals a numeric input for entering arbitrary level numbers.
+- **Packed Point**: an optional resolution input accepting three comma-separated float values (e.g., `4.0, 4.0, 40.0`).
+- **Split Point**: a required axis selector ("X", "Y", "Z"), an optional point group text field, and an optional resolution input (single float value).
+
+Only one kind SHALL be selectable per column. Changing the kind SHALL clear the variant-specific fields.
+
+#### Scenario: Add materialization kind shows target table dropdown
+- **WHEN** the user clicks "Set Kind" on a column row and selects "Materialization"
+- **THEN** the system SHALL display a target table/view dropdown populated with available materialization tables and views for the current datastack
 
 #### Scenario: Selecting target table populates column dropdown
 - **WHEN** the user selects "synapses" from the target table dropdown
 - **THEN** the system SHALL fetch the column schema for "synapses" and populate the target column dropdown with its column names
 
-#### Scenario: Selecting a view as link target
-- **WHEN** the user selects a materialization view from the target dropdown
-- **THEN** the system SHALL fetch the view's column schema and populate the target column dropdown
+#### Scenario: Add segmentation kind shows node level selector
+- **WHEN** the user clicks "Set Kind" on a column row and selects "Segmentation"
+- **THEN** the system SHALL display a node level dropdown with common presets ("Root ID", "Supervoxel ID", "Level 2 ID") and a "Custom level…" option
 
-#### Scenario: Multiple links per column
-- **WHEN** the user has already added one link to a column and clicks "Add Link" again
-- **THEN** the system SHALL allow adding an additional link with its own target table and column selectors
+#### Scenario: Segmentation custom level input
+- **WHEN** the user selects "Custom level…" from the segmentation node level dropdown
+- **THEN** the system SHALL reveal a numeric input where the user can enter an arbitrary level number (the system constructs `level{N}_id` from the entered number)
 
-#### Scenario: Remove a link
-- **WHEN** the user removes a link from a column
-- **THEN** the link SHALL be removed from the form without a server round-trip
+#### Scenario: Add packed point kind shows resolution field
+- **WHEN** the user clicks "Set Kind" on a column row and selects "Packed Point"
+- **THEN** the system SHALL display an optional resolution input accepting three comma-separated float values
+
+#### Scenario: Add split point kind shows spatial fields
+- **WHEN** the user clicks "Set Kind" on a column row and selects "Split Point"
+- **THEN** the system SHALL display a required axis selector ("X", "Y", "Z"), an optional point group text field, and an optional resolution input (single float)
+
+#### Scenario: Changing kind clears previous fields
+- **WHEN** the user has selected "Materialization" and filled in target table/column, then switches to "Split Point"
+- **THEN** the system SHALL clear the materialization fields and show the split point fields
+
+#### Scenario: Remove a kind
+- **WHEN** the user removes a kind from a column
+- **THEN** the kind SHALL be removed from the form without a server round-trip
 
 ### Requirement: Incremental name validation
 The registration form SHALL include a table name field. When the user finishes typing (on field blur), the system SHALL check name availability by verifying the name is not reserved by materialization and does not duplicate an existing asset. The result SHALL be displayed inline as a success or error indicator.
@@ -80,7 +99,7 @@ The registration form SHALL include a table name field. When the user finishes t
 - **THEN** the system SHALL display an error indicator and message that the name is already taken
 
 ### Requirement: Registration submission with result display
-The registration form SHALL provide a Register button that submits the complete form (URI, name, mat_version, column annotations with links, and all user-settable asset fields) via `POST /tables/register`. On success, the system SHALL display the registered table's ID and details with options to view the table or register another. On failure, the system SHALL display validation errors on the form without losing the user's input.
+The registration form SHALL provide a Register button that submits the complete form (URI, name, mat_version, column annotations with kinds, and all user-settable asset fields) via `POST /tables/register`. On success, the system SHALL display the registered table's ID and details with options to view the table or register another. On failure, the system SHALL display validation errors on the form without losing the user's input.
 
 The registration form SHALL expose all user-settable fields from the `TableRequest` schema, including: revision, mutability, maturity, is_managed, access_group, expires_at, and properties. Fields not on the form (auto-determined) are limited to: datastack (from global selector), asset_type (always "table"), and source (always "user"). A sync test SHALL enforce that any field added to `TableRequest` is either on the form or explicitly marked as auto-determined.
 

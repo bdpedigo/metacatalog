@@ -183,11 +183,11 @@ while True:
     start += n_rows_per_chunk
 
 # %%
-currtime = time.time()
-test_table_count = (
-    pl.scan_delta(base_out_path + "/post_pt_root_id-1024").select(pl.len()).collect()
-)
-print(f"{time.time() - currtime:.3f} seconds elapsed.")
+# currtime = time.time()
+# test_table_count = (
+#     pl.scan_delta(base_out_path + "/post_pt_root_id-1024").select(pl.len()).collect()
+# )
+# print(f"{time.time() - currtime:.3f} seconds elapsed.")
 
 
 # %%

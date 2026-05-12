@@ -1,11 +1,11 @@
 ## Why
 
-The catalog service runs locally but has no production deployment path. It needs a Helm chart, Terraform infrastructure (Cloud SQL, IAM), integration with AnnotationFrameworkInfoService for datastack URL discovery, and deployment documentation so it can be rolled out to the CAVE GKE cluster alongside existing services.
+The catalog service runs locally but has no production deployment path. It needs a Helm chart, Terraform infrastructure (Cloud SQL database, IAM), integration with AnnotationFrameworkInfoService for datastack URL discovery, and deployment documentation so it can be rolled out to the CAVE GKE cluster alongside existing services.
 
 ## What Changes
 
-- Create a Helm chart for the catalog service (deployment, service, ingress, ConfigMap for env vars) following existing cave-helm-charts patterns.
-- Add a Terraform module for the catalog's Cloud SQL instance, cloud IAM bindings (GCS credential vending service account), and service account provisioning.
+- Create a Helm chart for the catalog service (Deployment with cloudsql-proxy sidecar, Service, Ingress, ConfigMap, Secrets, HPA) following existing cave-helm-charts patterns.
+- Add Terraform resources to `local_kubernetes` for the catalog service account, per-bucket IAM bindings, SA key in Secret Manager, and a Helm values template. Add a `cave_catalog` database to the existing Cloud SQL instance in `local_infrastructure`.
 - Register the catalog service URL in AnnotationFrameworkInfoService's datastack configuration so CAVEclient can auto-discover the endpoint.
 - Write deployment documentation covering environment variables, required IAM roles, and Helmfile values.
 
@@ -22,7 +22,7 @@ The catalog service runs locally but has no production deployment path. It needs
 ## Impact
 
 - `submodules/cave-helm-charts/charts/` — new `catalog/` chart directory
-- `submodules/terraform-google-cave/` — new module for catalog infrastructure
-- `submodules/AnnotationFrameworkInfoService/` — add catalog URL to datastack config schema
-- `submodules/CAVEdeployment/` — Helmfile values for catalog
-- Documentation: new deployment guide in catalog repo README or separate doc
+- `submodules/terraform-google-cave/modules/local_infrastructure/` — new `cave_catalog` database on existing Cloud SQL instance
+- `submodules/terraform-google-cave/modules/local_kubernetes/` — new service account, IAM, Helm values template, helmfile entry
+- `submodules/AnnotationFrameworkInfoService/` — add `catalog_url` to datastack config schema
+- Documentation: deployment guide in catalog repo

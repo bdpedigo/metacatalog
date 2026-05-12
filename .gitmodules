@@ -7,3 +7,12 @@
 [submodule "submodules/MaterializationEngine"]
 	path = submodules/MaterializationEngine
 	url = https://github.com/CAVEconnectome/MaterializationEngine.git
+[submodule "submodules/AnnotationFrameworkInfoService"]
+	path = submodules/AnnotationFrameworkInfoService
+	url = https://github.com/CAVEconnectome/AnnotationFrameworkInfoService.git
+[submodule "submodules/terraform-google-cave"]
+	path = submodules/terraform-google-cave
+	url = https://github.com/CAVEconnectome/terraform-google-cave.git
+[submodule "submodules/cave-helm-charts"]
+	path = submodules/cave-helm-charts
+	url = https://github.com/CAVEconnectome/cave-helm-charts.git

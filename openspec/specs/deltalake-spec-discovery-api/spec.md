@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Discover specs endpoint
-The system SHALL provide `POST /materialize/deltalake/discover-specs` accepting `{ datastack, version, table_name, target_partition_size_mb }`. The endpoint SHALL require `dataset_admin` permission for the specified datastack. The endpoint SHALL run `discover_default_output_specs()` against the frozen DB, estimate bytes per row, resolve partition counts using the provided `target_partition_size_mb`, and return the results without enqueuing any Celery task.
+The system SHALL provide `POST /materialize/deltalake/api/<datastack_name>/discover-specs` accepting `{ version, table_name, target_partition_size_mb }`. The endpoint SHALL require `dataset_admin` permission for the specified datastack (enforced via the `datastack_name` URL parameter). The endpoint SHALL run `discover_default_output_specs()` against the frozen DB, estimate bytes per row, resolve partition counts using the provided `target_partition_size_mb`, and return the results without enqueuing any Celery task.
 
 #### Scenario: Successful discovery
 - **WHEN** an authorized admin POSTs valid datastack, version, and table_name

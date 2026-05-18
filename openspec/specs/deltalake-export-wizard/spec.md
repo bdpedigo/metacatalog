@@ -9,7 +9,7 @@ The system SHALL render a 3-step wizard UI at `/materialize/deltalake/` that dis
 
 #### Scenario: Non-admin user denied access
 - **WHEN** a user without any `dataset_admin` permissions navigates to the wizard
-- **THEN** the system SHALL redirect to a permission warning page
+- **THEN** the system SHALL render a 403 response with an error message stating that `dataset_admin` permission is required
 
 ### Requirement: Step 1 — Table selection and global configuration
 The system SHALL provide Step 1 with dropdown selectors for datastack, version, and table name. The version dropdown SHALL be populated from the existing versions endpoint and default to the latest version. The table dropdown SHALL be populated from the existing tables endpoint for the selected version. The system SHALL display a configurable `target_partition_size_mb` field defaulting to the environment value (`DELTALAKE_TARGET_PARTITION_SIZE_MB`). The system SHALL display the output bucket path as read-only informational text.
@@ -27,7 +27,7 @@ The system SHALL provide Step 1 with dropdown selectors for datastack, version, 
 - **THEN** the `target_partition_size_mb` field SHALL display the server-side default value (from `DELTALAKE_TARGET_PARTITION_SIZE_MB`)
 
 ### Requirement: Step 1 — Discover specs trigger
-The system SHALL provide a "Discover Specs" button that POSTs to the discover-specs endpoint with `{ datastack, version, table_name, target_partition_size_mb }`. While discovery runs, the UI SHALL display a loading spinner. On success, the UI SHALL navigate to Step 2 with the discovered specs.
+The system SHALL provide a "Discover Specs" button that POSTs to `POST /materialize/deltalake/api/<datastack_name>/discover-specs` with `{ version, table_name, target_partition_size_mb }` (datastack is in the URL path). While discovery runs, the UI SHALL display a loading spinner. On success, the UI SHALL navigate to Step 2 with the discovered specs.
 
 #### Scenario: Successful spec discovery
 - **WHEN** the user clicks "Discover Specs" with valid selections

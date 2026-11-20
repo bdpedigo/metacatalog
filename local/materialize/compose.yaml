@@ -1,0 +1,97 @@
+# A local copy of the Ray head pod of the production Delta Lake export RayJob.
+#
+# Source of the pod: submodules/cave-helm-charts/charts/materializationengine/
+# templates/ray_job_template_configmap.yaml. render.py writes the files in
+# .rendered/ from that template. Use the recipes in the root justfile.
+#
+# No service publishes a host port. Redis has no password and the Ray dashboard
+# has no authentication.
+name: mat-local
+
+services:
+  # The cloud-sql-proxy native sidecar of the head pod (rayCloudsqlProxy helper).
+  # The pod authenticates with a service account key. Locally the proxy uses your
+  # application default credentials, through one read-only file.
+  cloudsql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.23.0
+    command:
+      - "--port=3306"
+      - "--max-sigterm-delay=3600s"
+      - "${MAT_SQL_INSTANCE:?run just mat-render first}"
+    env_file:
+      - .rendered/proxy.env
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /config/application_default_credentials.json
+    volumes:
+      - type: bind
+        source: ${HOME}/.config/gcloud/application_default_credentials.json
+        target: /config/application_default_credentials.json
+        read_only: true
+
+  # Replaces the deployed Redis. run_deltalake_export writes its progress here.
+  redis:
+    image: redis:7
+    volumes:
+      - redis-data:/data
+
+  # The ray-head container. Start it with `just mat-export` or `just mat-run`.
+  export:
+    image: materializationengine:dev
+    build:
+      context: ../../submodules/MaterializationEngine
+    profiles: ["tools"]
+    # KubeRay replaces the image entrypoint with its own command, so do the same.
+    entrypoint: []
+    # The DB is at 127.0.0.1:3306, as in the pod. `redis` resolves through the
+    # compose network of the proxy container.
+    network_mode: "service:cloudsql-proxy"
+    depends_on:
+      - cloudsql-proxy
+      - redis
+    env_file:
+      - .rendered/head.env
+    environment:
+      # For psql and pg_isready only. PGUSER and PGPASSWORD come at run time.
+      PGHOST: 127.0.0.1
+      PGPORT: "3306"
+      # Every libpq session (psycopg2, ADBC, psql) starts read-only on the server.
+      # A write, for example db.create_all() in create_app(), fails instead of
+      # changing the deployed database. Remove only on purpose.
+      PGOPTIONS: "-c default_transaction_read_only=on"
+    shm_size: 4gb # Ray object store
+    working_dir: /app
+    volumes:
+      # Your working copy, so that edits run without a rebuild.
+      - type: bind
+        source: ../../submodules/MaterializationEngine
+        target: /app
+      # Hides the host .venv. The image has its packages in /usr/local.
+      - type: volume
+        target: /app/.venv
+      - type: bind
+        source: .rendered/config.cfg
+        target: /app/materializationengine/instance/config.cfg
+        read_only: true
+      - type: bind
+        source: ${HOME}/.cloudvolume/secrets/google-secret.json
+        target: /home/nginx/.cloudvolume/secrets/google-secret.json
+        read_only: true
+      # The pod reads its token from cave-secret.json (DAF_CREDENTIALS), for the
+      # global server. Locally, the token file for that server is the current one.
+      - type: bind
+        source: ${HOME}/.cloudvolume/secrets/global.daf-apis.com-cave-secret.json
+        target: /home/nginx/.cloudvolume/secrets/cave-secret.json
+        read_only: true
+      - type: bind
+        source: ./exports
+        target: /exports
+      # Only the tool script. The folder also holds db-credentials.env.
+      - type: bind
+        source: ./inspect_export.py
+        target: /local/inspect_export.py
+        read_only: true
+      - ray-spill:/tmp/ray
+
+volumes:
+  redis-data:
+  ray-spill:

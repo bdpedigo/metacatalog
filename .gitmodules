@@ -16,3 +16,9 @@
 [submodule "submodules/cave-helm-charts"]
 	path = submodules/cave-helm-charts
 	url = https://github.com/CAVEconnectome/cave-helm-charts.git
+[submodule "submodules/cloud-volume"]
+	path = submodules/cloud-volume
+	url = https://github.com/seung-lab/cloud-volume.git
+[submodule "submodules/cavebear"]
+	path = submodules/cavebear
+	url = https://github.com/CAVEconnectome/cavebear

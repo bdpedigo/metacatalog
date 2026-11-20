@@ -22,3 +22,6 @@
 [submodule "submodules/cavebear"]
 	path = submodules/cavebear
 	url = https://github.com/CAVEconnectome/cavebear
+[submodule "submodules/terraform-cave-private"]
+	path = submodules/terraform-cave-private
+	url = https://github.com/CAVEconnectome/terraform-cave-private

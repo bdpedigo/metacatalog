@@ -207,3 +207,9 @@ marimo/_lsp/
 __marimo__/
 
 *.DS_Store
+scratch_local
+
+# Local materialize tooling: rendered infra config and export output
+local/materialize/.rendered/
+local/materialize/exports/
+local/materialize/db-credentials.env

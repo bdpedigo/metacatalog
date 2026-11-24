@@ -68,6 +68,13 @@ services:
       # Hides the host .venv. The image has its packages in /usr/local.
       - type: volume
         target: /app/.venv
+      # For development: your cavebear working copy replaces the cavebear package
+      # that the image installed from its pinned commit. Edits to cavebear then run
+      # without a rebuild. Remove this mount to test the pinned commit.
+      - type: bind
+        source: ../../submodules/cavebear/src/cavebear
+        target: /usr/local/lib/python3.12/site-packages/cavebear
+        read_only: true
       - type: bind
         source: .rendered/config.cfg
         target: /app/materializationengine/instance/config.cfg

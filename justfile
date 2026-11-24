@@ -84,14 +84,23 @@ mat-down:
     {{ compose }} --profile tools down --volumes --remove-orphans
 
 # Run the production Ray entrypoint for one table and version. Deletes the old local output first.
-mat-export table version:
+# `specs` is an optional JSON list of output specs. Without it, the export finds the default specs.
+mat-export table version specs="":
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _mat_infra }}
     table={{ quote(table) }}
     version={{ quote(version) }}
+    specs={{ quote(specs) }}
     if ! [[ "$table" =~ ^[A-Za-z0-9_]+$ ]] || ! [[ "$version" =~ ^[0-9]+$ ]]; then
       echo "error: the table must be an identifier and the version a number" >&2; exit 1
+    fi
+    specs_args=()
+    if [ -n "$specs" ]; then
+      if ! printf '%s' "$specs" | python3 -I -c 'import json,sys; s = json.load(sys.stdin); sys.exit(0 if isinstance(s, list) else 1)'; then
+        echo "error: specs must be a JSON list of output specs" >&2; exit 1
+      fi
+      specs_args=(--output-specs "$specs")
     fi
     mkdir -p {{ mat_dir }}/exports
     if ! git check-ignore -q {{ mat_dir }}/exports; then
@@ -107,7 +116,7 @@ mat-export table version:
     {{ compose }} run --rm -e MAT_DB_USER -e MAT_DB_PASSWORD export \
       python -m materializationengine.rayjobs.entrypoints.deltalake_export \
       --datastack {{ datastack }} --version "$version" --table "$table" \
-      --job-id "local-$(date +%Y%m%d-%H%M%S)"
+      --job-id "local-$(date +%Y%m%d-%H%M%S)" ${specs_args[@]+"${specs_args[@]}"}
 
 # Run any command in the export container with the DB credentials, e.g. `just mat-run bash`.
 mat-run +cmd:

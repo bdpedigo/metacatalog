@@ -4,8 +4,8 @@
 # templates/ray_job_template_configmap.yaml. render.py writes the files in
 # .rendered/ from that template. Use the recipes in the root justfile.
 #
-# No service publishes a host port. Redis has no password and the Ray dashboard
-# has no authentication.
+# No service publishes a host port, except web-port for `just mat-web`. Redis has
+# no password and the Ray dashboard has no authentication.
 name: mat-local
 
 services:
@@ -98,6 +98,18 @@ services:
         target: /local/inspect_export.py
         read_only: true
       - ray-spill:/tmp/ray
+
+  # Only for `just mat-web`: forwards 127.0.0.1:8080 on your machine to the web
+  # app, which runs in the export container on the network of the proxy. Only this
+  # service publishes a host port, and only on localhost.
+  web-port:
+    image: alpine/socat:1.8.0.3
+    profiles: ["web"]
+    command: ["TCP-LISTEN:8080,fork,reuseaddr", "TCP:cloudsql-proxy:8080"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - cloudsql-proxy
 
 volumes:
   redis-data:

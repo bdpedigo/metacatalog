@@ -81,7 +81,7 @@ mat-up:
 
 # Stop all services and delete the Redis data and Ray spill volumes.
 mat-down:
-    {{ compose }} --profile tools down --volumes --remove-orphans
+    {{ compose }} --profile tools --profile web down --volumes --remove-orphans
 
 # Run the production Ray entrypoint for one table and version. Deletes the old local output first.
 # `specs` is an optional JSON list of output specs. Without it, the export finds the default specs.
@@ -117,6 +117,22 @@ mat-export table version specs="":
       python -m materializationengine.rayjobs.entrypoints.deltalake_export \
       --datastack {{ datastack }} --version "$version" --table "$table" \
       --job-id "local-$(date +%Y%m%d-%H%M%S)" ${specs_args[@]+"${specs_args[@]}"}
+
+# Run the web app with login off, for the Delta Lake wizard at https://localhost:8080/materialize/deltalake/.
+mat-web:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Ctrl-C stops it. The certificate is self-signed. Anyone on this machine can use
+    # the app while it runs, and the DB stays read-only. Submit only queues a Celery
+    # task in the local Redis, and no worker runs it: run the specs that step 3
+    # shows with `just mat-export`.
+    {{ _mat_infra }}
+    {{ _mat_creds }}
+    {{ compose }} --profile web up -d web-port
+    trap '{{ compose }} --profile web stop web-port >/dev/null 2>&1 || true' EXIT
+    echo "wizard: https://localhost:8080/materialize/deltalake/" >&2
+    {{ compose }} run --rm -e MAT_DB_USER -e MAT_DB_PASSWORD \
+      -e AUTH_DISABLED=true -e FLASK_RUN_PORT=8080 export python run.py
 
 # Run any command in the export container with the DB credentials, e.g. `just mat-run bash`.
 mat-run +cmd:
